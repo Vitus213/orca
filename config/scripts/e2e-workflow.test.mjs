@@ -41,7 +41,7 @@ describe('E2E workflow', () => {
       'utf8'
     )
 
-    expect(testStep.run).toContain('pnpm run test:e2e -- ${{ matrix.test_args }}')
+    expect(testStep.run).toContain('pnpm run test:e2e ${{ matrix.test_args }}')
     expect(e2eJob.strategy['max-parallel']).toBe(10)
     expect(regularShards).toHaveLength(10)
     expect(
