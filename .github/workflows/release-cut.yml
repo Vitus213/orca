@@ -547,6 +547,11 @@ jobs:
   e2e:
     needs: cut
     if: needs.cut.outputs.should_release == 'true'
+    # Why: a reusable workflow cannot expand its caller's token permissions.
+    permissions:
+      contents: read
+      issues: read
+      pull-requests: read
     uses: ./.github/workflows/e2e.yml
     with:
       ref: refs/tags/${{ needs.cut.outputs.tag }}
@@ -1234,7 +1239,6 @@ jobs:
             Write-Warning 'Restored pre-rebuild installer; this release ships with unsigned inner binaries.'
           }
       # ── End Windows inner-binary signing ───────────────────────────────
-
       - name: Upload unsigned Windows installer for SignPath
         if: matrix.platform == 'win'
         id: upload-unsigned-windows-installer

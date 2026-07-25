@@ -77,6 +77,10 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    permissions:
+      contents: read
+      issues: read
+      pull-requests: read
     strategy:
       fail-fast: false
       matrix:
@@ -160,6 +164,10 @@ jobs:
       # ORCA_E2E_FORWARD_APP_LOGS keeps startup failures visible when Electron
       # launches but never creates a BrowserWindow.
       - name: Run E2E tests (${{ matrix.shard_name }})
+        # Why: Electron exercises GitHub-backed workspace views through gh, which
+        # requires both an explicit token environment variable and read scopes.
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: xvfb-run --auto-servernum env SKIP_BUILD=1 ORCA_E2E_FORWARD_APP_LOGS=1 pnpm run test:e2e --shard=${{ matrix.shard }}
 
       # Why: Playwright retains traces/screenshots only on failure. Uploading
@@ -179,6 +187,10 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    permissions:
+      contents: read
+      issues: read
+      pull-requests: read
 
     steps:
       - name: Checkout
@@ -219,6 +231,9 @@ jobs:
       # Why: this is the release-path proof that the deployed Linux relay keeps
       # its PTY and explorer live across a real watcher SIGSEGV.
       - name: Run Docker SSH watcher isolation E2E
+        # Why: the Electron app invokes gh while validating the recovery path.
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: xvfb-run --auto-servernum env SKIP_BUILD=1 ORCA_E2E_FORWARD_APP_LOGS=1 pnpm run test:e2e:ssh-docker-watcher-isolation
 
       - name: Upload watcher isolation traces
