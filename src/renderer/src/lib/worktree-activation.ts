@@ -539,7 +539,12 @@ export function ensureWorktreeHasInitialTerminal(
     return null
   }
 
-  if (!shouldAutoCreateInitialTerminal(renderableTabCount)) {
+  if (
+    !shouldAutoCreateInitialTerminal(
+      renderableTabCount,
+      store.defaultTerminalTabsAppliedByWorktreeId[worktreeId] === true
+    )
+  ) {
     const existingTerminalTabId = store.tabsByWorktree[worktreeId]?.[0]?.id
     if (existingTerminalTabId && (setup || issueCommand)) {
       // Why: main may have already adopted the startup tab but failed to spawn

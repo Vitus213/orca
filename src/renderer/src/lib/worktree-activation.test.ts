@@ -195,7 +195,7 @@ describe('ensureWorktreeHasInitialTerminal', () => {
     })
   })
 
-  it('does not duplicate default tabs after the worktree marker is persisted', () => {
+  it('does not recreate a terminal after the worktree marker is persisted', () => {
     const store = createMockStore({
       defaultTerminalTabsAppliedByWorktreeId: { 'wt-1': true }
     })
@@ -208,13 +208,9 @@ describe('ensureWorktreeHasInitialTerminal', () => {
       ]
     })
 
-    expect(store.createTab).toHaveBeenCalledTimes(1)
-    expect(store.setTabCustomTitle).not.toHaveBeenCalledWith('tab-1', 'Claude', {
-      recordInteraction: false
-    })
-    expect(store.queueTabStartupCommand).not.toHaveBeenCalledWith('tab-1', {
-      command: 'claude'
-    })
+    expect(store.createTab).not.toHaveBeenCalled()
+    expect(store.setTabCustomTitle).not.toHaveBeenCalled()
+    expect(store.queueTabStartupCommand).not.toHaveBeenCalled()
   })
 
   it('does not create a local fallback tab in the paired web runtime client', () => {

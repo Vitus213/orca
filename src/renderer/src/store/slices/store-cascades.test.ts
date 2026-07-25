@@ -2589,6 +2589,7 @@ describe('setActiveWorktree', () => {
     expect(s.activeTabId).toBeNull()
     expect(s.tabsByWorktree[wt]).toEqual([])
     expect(s.unifiedTabsByWorktree[wt]).toEqual([])
+    expect(s.defaultTerminalTabsAppliedByWorktreeId[wt]).toBe(true)
   })
 
   it('keeps terminal numbering stable when a live agent renames an existing tab', () => {

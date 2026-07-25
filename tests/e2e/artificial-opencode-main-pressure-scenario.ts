@@ -252,7 +252,7 @@ async function measureAndAnnotateScroll<
   await scrollActiveTerminalToBottom(orcaPage)
 }
 
-function expectMainPressureAndTyping<TMeasurement extends MainPressureMeasurement>({
+export function expectMainPressureAndTyping<TMeasurement extends MainPressureMeasurement>({
   ackGate,
   mainPressure,
   maxMedianKeyLatencyMs,

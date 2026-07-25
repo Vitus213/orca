@@ -12,6 +12,10 @@ import {
   getResponsiveScrollPath,
   type ScrollAttemptMeasurement
 } from './artificial-opencode-scroll-measurement'
+import {
+  CDP_WHEEL_ACTION_TIMEOUT_MS,
+  dispatchCdpWheelWithDeadline
+} from './artificial-opencode-cdp-wheel'
 import { sendToTerminal, waitForTerminalOutput } from './helpers/terminal'
 
 export { getResponsiveScrollPath }
@@ -38,6 +42,7 @@ type ScrollAckGateSnapshot = {
 }
 
 const TIMER_SAMPLE_MS = 16
+
 const SLOW_SCROLL_DIAGNOSTIC_MS = 150
 
 export async function seedActiveTerminalScrollback(
@@ -133,8 +138,10 @@ export async function measureActiveTerminalWheelScroll(page: Page): Promise<Scro
     const start = performance.now()
     const attempts: ScrollAttemptMeasurement[] = []
     let afterViewportY = await measureScrollAttempt(page, attempts, 'cdpWheel', async () => {
-      await page.mouse.move(target.x, target.y)
-      await page.mouse.wheel(0, -1200)
+      const outcome = await dispatchCdpWheelWithDeadline(page.mouse, target)
+      if (outcome === 'timed-out') {
+        throw new Error(`CDP wheel input did not settle within ${CDP_WHEEL_ACTION_TIMEOUT_MS}ms`)
+      }
     })
     let scrollLatencyMs = performance.now() - start
     const cdpWheelMoved = afterViewportY < target.beforeViewportY

@@ -1295,6 +1295,8 @@ export const createTerminalSlice: StateCreator<AppState, [], [], TerminalSlice> 
           next[wId] = after
         }
       }
+      const initialTerminalHandledWorktreeId =
+        closeReason === 'user' ? (closedWorktreeId ?? retirementPlan.worktreeId) : null
       // Why: only explicit user closes feed the Cmd+Shift+T reopen stack.
       // Cleanup and PTY-exit closes must not pollute user undo history.
       const capturedSnapshot =
@@ -1426,6 +1428,16 @@ export const createTerminalSlice: StateCreator<AppState, [], [], TerminalSlice> 
       }
 
       return {
+        // Why: a user can intentionally empty a workspace. Persist that intent
+        // with the close transaction so a later activation cannot recreate Terminal 1.
+        ...(initialTerminalHandledWorktreeId
+          ? {
+              defaultTerminalTabsAppliedByWorktreeId: {
+                ...s.defaultTerminalTabsAppliedByWorktreeId,
+                [initialTerminalHandledWorktreeId]: true
+              }
+            }
+          : {}),
         tabsByWorktree: next,
         activeTabId: s.activeTabId === tabId ? null : s.activeTabId,
         activeTabIdByWorktree: nextActiveTabIdByWorktree,

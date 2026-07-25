@@ -20,8 +20,9 @@ import {
 
 async function wedgeActivePaneWritePipeline(
   page: Parameters<typeof waitForSessionReady>[0]
-): Promise<void> {
-  await page.evaluate(() => {
+): Promise<string> {
+  const callbackMarker = `__e2eWedgeCallbackRan_${Date.now()}`
+  await page.evaluate((marker) => {
     const state = window.__store?.getState()
     const worktreeId = state?.activeWorktreeId
     const tabId =
@@ -40,9 +41,11 @@ async function wedgeActivePaneWritePipeline(
     // re-schedule and write() only re-arms on an EMPTY buffer, so the pipeline
     // never drains again.
     pane.terminal.write('', () => {
+      ;(window as unknown as Record<string, boolean>)[marker] = true
       throw new Error('e2e: simulated unguarded write-completion throw')
     })
-  })
+  }, callbackMarker)
+  return callbackMarker
 }
 
 test.describe('Wedged terminal write pipeline recovery', () => {
@@ -53,7 +56,7 @@ test.describe('Wedged terminal write pipeline recovery', () => {
     await waitForActiveWorktree(orcaPage)
     await ensureTerminalVisible(orcaPage)
     await waitForActiveTerminalManager(orcaPage, 30_000)
-    await waitForActivePanePtyId(orcaPage)
+    const ptyId = await waitForActivePanePtyId(orcaPage)
     await focusActiveTerminalInput(orcaPage)
 
     // Prove the pane is healthy first.
@@ -64,27 +67,53 @@ test.describe('Wedged terminal write pipeline recovery', () => {
     await expect
       .poll(async () => (await getTerminalContent(orcaPage)).includes(beforeMarker), {
         timeout: 15_000,
-        message: 'Baseline echo did not render — pane unhealthy before wedge'
+        message: 'Baseline echo did not render - pane unhealthy before wedge'
       })
       .toBe(true)
 
-    await wedgeActivePaneWritePipeline(orcaPage)
+    const callbackMarker = await wedgeActivePaneWritePipeline(orcaPage)
+    // The old test raced the injection with the next typed command. A passing
+    // run could therefore render that command before the callback wedged
+    // WriteBuffer, while a slow runner wedged too late to exercise recovery.
+    // Wait for the exact failure callback before generating the PTY output that
+    // must trigger the scheduler's probe-certified recovery path.
+    await expect
+      .poll(
+        () =>
+          orcaPage.evaluate(
+            (marker) => (window as unknown as Record<string, boolean>)[marker] === true,
+            callbackMarker
+          ),
+        {
+          timeout: 10_000,
+          message: 'The simulated unguarded xterm write callback never ran'
+        }
+      )
+      .toBe(true)
 
-    // Type through the wedge. The PTY is alive: bytes reach the shell and the
-    // shell echoes them — but a wedged pipeline never parses the echo, so
-    // without recovery the marker never renders.
+    // Inject output through the PTY control plane rather than relying on an
+    // xterm keyboard event after its callback loop has crashed. The recovery
+    // contract is that the live PTY's next output rebuilds rendering.
     const afterMarker = `WEDGE_RECOVERED_${runId}`
-    await focusActiveTerminalInput(orcaPage)
-    await orcaPage.keyboard.type(`echo ${afterMarker}`, { delay: 20 })
-    await orcaPage.keyboard.press('Enter')
+    await sendToTerminal(orcaPage, ptyId, `echo ${afterMarker}\r`)
 
     await expect
       .poll(async () => (await getTerminalContent(orcaPage)).includes(afterMarker), {
-        // Generous: recovery is certified by a probe write with a 10s stall
-        // check, so the rebuild can legitimately take >20s to kick in.
         timeout: 45_000,
         message:
-          'Pane never rendered output typed after the write pipeline wedged — wedged pane was not recovered'
+          'Pane never rendered PTY output after the write pipeline wedged - wedged pane was not recovered'
+      })
+      .toBe(true)
+
+    // The fresh xterm must accept end-to-end input after recovery.
+    await focusActiveTerminalInput(orcaPage)
+    const typedMarker = `WEDGE_INPUT_${runId}`
+    await orcaPage.keyboard.type(`echo ${typedMarker}`, { delay: 20 })
+    await orcaPage.keyboard.press('Enter')
+    await expect
+      .poll(async () => (await getTerminalContent(orcaPage)).includes(typedMarker), {
+        timeout: 15_000,
+        message: 'Typed input never reached the PTY after write-pipeline recovery'
       })
       .toBe(true)
   })

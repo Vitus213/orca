@@ -219,7 +219,14 @@ export function closeTerminalTabInWorkspaceSession(
     tabGroupLayouts: { ...session.tabGroupLayouts },
     activeGroupIdByWorktree: { ...session.activeGroupIdByWorktree },
     remoteSessionIdsByTabId: { ...session.remoteSessionIdsByTabId },
-    sleepingAgentSessionsByPaneKey: { ...session.sleepingAgentSessionsByPaneKey }
+    sleepingAgentSessionsByPaneKey: { ...session.sleepingAgentSessionsByPaneKey },
+    // Why: an explicit terminal.closeTab can make the terminal surface intentionally
+    // empty. Keep the durable initial-tab gate so later activation or restart cannot
+    // synthesize a replacement Terminal 1.
+    defaultTerminalTabsAppliedByWorktreeId: {
+      ...session.defaultTerminalTabsAppliedByWorktreeId,
+      [worktreeId]: true
+    }
   }
   delete next.terminalLayoutsByTabId[tabId]
   delete next.remoteSessionIdsByTabId![tabId]

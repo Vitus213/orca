@@ -2,8 +2,12 @@ import { describe, expect, it } from 'vitest'
 import { shouldAutoCreateInitialTerminal } from './initial-terminal'
 
 describe('shouldAutoCreateInitialTerminal', () => {
-  it('creates a terminal when the tab-group model has no renderable tabs', () => {
+  it('creates a terminal when a new tab-group model has no renderable tabs', () => {
     expect(shouldAutoCreateInitialTerminal(0)).toBe(true)
+  })
+
+  it('does not recreate a terminal after its empty state was durably handled', () => {
+    expect(shouldAutoCreateInitialTerminal(0, true)).toBe(false)
   })
 
   it('does not create a terminal when the tab-group model already has content', () => {

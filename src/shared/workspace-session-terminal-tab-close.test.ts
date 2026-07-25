@@ -88,6 +88,7 @@ describe('closeTerminalTabInWorkspaceSession', () => {
   it('atomically removes a dormant split tab and returns every exact PTY', () => {
     const result = closeTerminalTabInWorkspaceSession(
       session({
+        defaultTerminalTabsAppliedByWorktreeId: {},
         remoteSessionIdsByTabId: { 'terminal-1': 'pty-remote' },
         sleepingAgentSessionsByPaneKey: {
           'terminal-1:leaf-left': {

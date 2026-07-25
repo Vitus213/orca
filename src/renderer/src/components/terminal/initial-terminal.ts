@@ -1,7 +1,9 @@
-export function shouldAutoCreateInitialTerminal(renderableTabCount: number): boolean {
+export function shouldAutoCreateInitialTerminal(
+  renderableTabCount: number,
+  initialTerminalHandled = false
+): boolean {
   // Why: the tab-group model is now the source of truth for visible worktree
-  // content. If it has no renderable tabs, the workspace must synthesize a
-  // terminal instead of deferring to legacy editor/browser restore state,
-  // which can otherwise leave an empty split group with nothing mounted.
-  return renderableTabCount === 0
+  // content. A truly new worktree with no renderable tabs needs a terminal,
+  // but a durable close records that the empty state was intentional.
+  return renderableTabCount === 0 && !initialTerminalHandled
 }

@@ -1128,9 +1128,9 @@ export type WorkspaceSessionState = {
    *  older builds — hydration tolerates missing/partial maps and the
    *  active worktree is seeded on first restore. */
   lastVisitedAtByWorktreeId?: Record<string, number>
-  /** Worktrees whose repo-defined default terminal tabs have already been
-   *  considered. Persisted so closing all tabs and re-opening the workspace
-   *  does not recreate the template. */
+  /** Worktrees whose repo-defined terminal defaults have already been considered,
+   *  or whose terminal surface was explicitly closed. Persisted so re-opening an
+   *  intentionally empty workspace does not recreate a terminal. */
   defaultTerminalTabsAppliedByWorktreeId?: Record<string, true>
   /** Provider-session resume records captured when workspaces sleep. */
   sleepingAgentSessionsByPaneKey?: Record<string, SleepingAgentSessionRecord>

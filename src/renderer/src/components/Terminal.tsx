@@ -278,6 +278,9 @@ function Terminal(): React.JSX.Element | null {
   )
   const activeTabId = useAppStore((s) => s.activeTabId)
   const activeTabIdByWorktree = useAppStore((s) => s.activeTabIdByWorktree)
+  const defaultTerminalTabsAppliedByWorktreeId = useAppStore(
+    (s) => s.defaultTerminalTabsAppliedByWorktreeId
+  )
   const createTab = useAppStore((s) => s.createTab)
   const closeTab = useAppStore((s) => s.closeTab)
   const setActiveTab = useAppStore((s) => s.setActiveTab)
@@ -1240,7 +1243,12 @@ function Terminal(): React.JSX.Element | null {
     // Re-running it on ordinary tab-count changes would recreate a terminal
     // immediately after the user intentionally closed the last visible one.
     const { renderableTabCount } = reconcileWorktreeTabModel(activeWorktreeId)
-    if (!shouldAutoCreateInitialTerminal(renderableTabCount)) {
+    if (
+      !shouldAutoCreateInitialTerminal(
+        renderableTabCount,
+        defaultTerminalTabsAppliedByWorktreeId[activeWorktreeId] === true
+      )
+    ) {
       return
     }
     // Why: this tab only exists because the user clicked a never-visited
@@ -1248,7 +1256,13 @@ function Terminal(): React.JSX.Element | null {
     // activity and reshuffle the sidebar. Explicit "New Tab" actions
     // (handleNewTab below) still bump normally.
     createTab(activeWorktreeId, undefined, undefined, { pendingActivationSpawn: true })
-  }, [workspaceSessionReady, activeWorktreeId, createTab, reconcileWorktreeTabModel])
+  }, [
+    workspaceSessionReady,
+    activeWorktreeId,
+    createTab,
+    reconcileWorktreeTabModel,
+    defaultTerminalTabsAppliedByWorktreeId
+  ])
 
   const startupResumeWorktreeIdsRef = useRef(new Set<string>())
   useEffect(() => {
