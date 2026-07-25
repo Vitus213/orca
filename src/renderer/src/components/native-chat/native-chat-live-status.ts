@@ -36,9 +36,10 @@ export type NativeChatLiveMergeInput = {
  * provider lifecycle records reconcile a dropped final hook.
  *
  * Precedence:
- *   - errors win outright; live work wins over transcript loading.
- *   - hook 'working' stays authoritative until the hook exits that state OR an
- *     explicit terminal marker for this turn lands.
+ *   - errors win outright; transcript loading wins until an initial snapshot or
+ *     live append can render conversation content.
+ *   - hook 'working' stays authoritative after loading completes, until the hook exits
+ *     that state or an explicit terminal marker for this turn lands.
  *   - design is hook-first: lifecycle is a terminal suppressor for dropped
  *     Stop hooks, not a full authority for active-turn reconstruction.
  */
@@ -65,7 +66,7 @@ export function mergeNativeChatLiveSession(input: NativeChatLiveMergeInput): Nat
     transcriptLifecycle,
     hookHasWorkingSubagents ?? false
   )
-  if (loading && status !== 'working') {
+  if (loading) {
     return assembleNativeChatSession({ sources, sessionId, agent, status: 'loading' })
   }
   return assembleNativeChatSession({

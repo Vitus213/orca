@@ -1698,7 +1698,10 @@ export function registerPtyHandlers(
   const PTY_BATCH_FLUSH_CHUNK_CHARS = 16 * 1024
   const PTY_BATCH_FLUSH_MAX_WRITES = 2
   const PTY_RENDERER_IN_FLIGHT_HIGH_WATER_CHARS = 512 * 1024
-  const PTY_RENDERER_TOTAL_IN_FLIGHT_HIGH_WATER_CHARS = 8 * 1024 * 1024
+  const PTY_RENDERER_TOTAL_IN_FLIGHT_HIGH_WATER_CHARS = 3 * 1024 * 1024
+  // Why: renderer output is queued after this ACK window. Keep all background
+  // PTYs within the 3 MB renderer scheduler budget, rather than allowing
+  // multiple 512 KB per-PTY windows to accumulate into an 8 MB redraw burst.
   // Why: while the renderer cannot receive (frozen, starved, mid-reload), a
   // chatty PTY used to grow its pendingData string without bound — main-process
   // heap ballooning that a renderer reload cannot clear (main's #7630 fixed the
@@ -2081,7 +2084,11 @@ export function registerPtyHandlers(
     return Math.max(0, payload.rawLength ?? payload.data.length)
   }
 
-  function canSendPtyDataToRenderer(id: string, options: { interactive?: boolean } = {}): boolean {
+  function canSendPtyDataToRenderer(
+    id: string,
+    charCount: number,
+    options: { interactive?: boolean } = {}
+  ): boolean {
     const totalLimit =
       PTY_RENDERER_TOTAL_IN_FLIGHT_HIGH_WATER_CHARS +
       (options.interactive === true ? PTY_RENDERER_INTERACTIVE_RESERVE_CHARS : 0)
@@ -2090,7 +2097,11 @@ export function registerPtyHandlers(
     const ptyLimit =
       PTY_RENDERER_IN_FLIGHT_HIGH_WATER_CHARS +
       (options.interactive === true ? PTY_RENDERER_ACTIVE_PTY_IN_FLIGHT_RESERVE_CHARS : 0)
-    return getRendererInFlightCharsForPty(id) < ptyLimit && rendererInFlightTotalChars < totalLimit
+    const nextChars = Math.max(0, charCount)
+    return (
+      getRendererInFlightCharsForPty(id) + nextChars <= ptyLimit &&
+      rendererInFlightTotalChars + nextChars <= totalLimit
+    )
   }
 
   // Why: max-merge on cumulative totals is idempotent and reorder-tolerant —
@@ -2474,7 +2485,15 @@ export function registerPtyHandlers(
         }
         continue
       }
-      if (!canSendPtyDataToRenderer(id, { interactive: activeRendererPtys.has(id) })) {
+      const chunk =
+        pending.droppedOutput === true
+          ? pending.data
+          : pending.data.slice(0, PTY_BATCH_FLUSH_CHUNK_CHARS)
+      if (
+        !canSendPtyDataToRenderer(id, chunk.length, {
+          interactive: activeRendererPtys.has(id)
+        })
+      ) {
         continue
       }
       pendingData.delete(id)
@@ -2489,8 +2508,7 @@ export function registerPtyHandlers(
         continue
       }
       const { data } = pending
-      const chunk = data.slice(0, PTY_BATCH_FLUSH_CHUNK_CHARS)
-      const remaining = data.slice(PTY_BATCH_FLUSH_CHUNK_CHARS)
+      const remaining = data.slice(chunk.length)
       if (remaining) {
         const nextPending: PendingPtyData = { data: remaining }
         if (typeof pending.startSeq === 'number') {
@@ -2742,7 +2760,7 @@ export function registerPtyHandlers(
         // Why: user-input echo should not be pinned behind unrelated bulk
         // terminal output already handed to the renderer. The reserve is
         // bounded, and the per-PTY cap still prevents an active TUI runaway.
-        if (!canSendPtyDataToRenderer(payload.id, { interactive: true })) {
+        if (!canSendPtyDataToRenderer(payload.id, nextData.length, { interactive: true })) {
           requestDeliveryResyncForGatedPty()
           pendingData.set(payload.id, pending)
           updateProducerFlowControl(payload.id)
@@ -2772,7 +2790,11 @@ export function registerPtyHandlers(
       // Why: probe on data arrival, not on flush skips — new output for a
       // fully gated PTY is the moment stuck delivery becomes observable.
       if (
-        !canSendPtyDataToRenderer(payload.id, { interactive: activeRendererPtys.has(payload.id) })
+        !canSendPtyDataToRenderer(
+          payload.id,
+          Math.min(nextData.length, PTY_BATCH_FLUSH_CHUNK_CHARS),
+          { interactive: activeRendererPtys.has(payload.id) }
+        )
       ) {
         requestDeliveryResyncForGatedPty()
       }

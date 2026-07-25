@@ -152,7 +152,7 @@ function summarizeArrivals(
   }
 }
 
-test.describe('terminal TUI wheel report drain', () => {
+test.describe('terminal TUI wheel report drain @ci-isolated', () => {
   test('dense trackpad-like wheel stream reaches the PTY while the gesture happens', async ({
     orcaPage
   }) => {

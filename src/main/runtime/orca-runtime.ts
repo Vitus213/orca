@@ -20237,19 +20237,34 @@ export class OrcaRuntimeService {
     // Why: this mutates live PTYs, so the runtime must reject it while the
     // renderer graph is reloading instead of acting on cached leaf ownership.
     const graphEpoch = this.captureReadyGraphEpoch()
-    const worktree = await this.resolveWorktreeSelector(worktreeSelector)
+    let worktreeId: string
+    try {
+      worktreeId = (await this.resolveWorktreeSelector(worktreeSelector)).id
+    } catch (error) {
+      if (!(error instanceof Error) || error.message !== 'selector_not_found') {
+        throw error
+      }
+      const removalTarget = parseExactWorktreeIdSelector(worktreeSelector)
+      if (!removalTarget || !this.store?.getWorktreeMeta(removalTarget.id)) {
+        throw error
+      }
+      // Why: destructive cleanup can race Git's listing cache after the
+      // removal target was validated. An exact ID with persisted metadata is
+      // still safe to sweep, and leaving its PTYs alive blocks deletion.
+      worktreeId = removalTarget.id
+    }
     this.assertStableReadyGraph(graphEpoch)
     if (options.deadline !== undefined && Date.now() >= options.deadline) {
       return { stopped: 0 }
     }
     const ptyIds = new Set<string>()
     for (const leaf of this.leaves.values()) {
-      if (leaf.worktreeId === worktree.id && leaf.ptyId) {
+      if (leaf.worktreeId === worktreeId && leaf.ptyId) {
         ptyIds.add(leaf.ptyId)
       }
     }
     for (const pty of this.ptysById.values()) {
-      if (pty.worktreeId === worktree.id && pty.connected) {
+      if (pty.worktreeId === worktreeId && pty.connected) {
         ptyIds.add(pty.ptyId)
       }
     }

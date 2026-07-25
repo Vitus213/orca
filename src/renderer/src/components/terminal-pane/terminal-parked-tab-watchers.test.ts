@@ -470,6 +470,39 @@ describe('terminal-parked-tab-watchers', () => {
       })
     })
 
+    it('collapses the exited leaf when a detached primary transport observed the exit', () => {
+      capturePanes([
+        { ptyId: PTY_ID, paneId: 1, leafId: LEAF_ID, drivesTabTitle: true },
+        { ptyId: SECOND_PTY_ID, paneId: 2, leafId: SECOND_LEAF_ID, drivesTabTitle: false }
+      ])
+      syncParked()
+      mockStoreState.terminalLayoutsByTabId[TAB_ID] = {
+        root: {
+          type: 'split',
+          direction: 'vertical',
+          first: { type: 'leaf', leafId: LEAF_ID },
+          second: { type: 'leaf', leafId: SECOND_LEAF_ID }
+        },
+        activeLeafId: LEAF_ID,
+        expandedLeafId: null,
+        ptyIdsByLeafId: { [LEAF_ID]: PTY_ID, [SECOND_LEAF_ID]: SECOND_PTY_ID }
+      }
+
+      exitSubscriptions
+        .find((entry) => entry.ptyId === SECOND_PTY_ID)
+        ?.callback(0, {
+          hadPrimary: true
+        })
+
+      expect(closeTerminalTab).not.toHaveBeenCalled()
+      expect(mockStoreState.setTabLayout).toHaveBeenCalledWith(TAB_ID, {
+        root: { type: 'leaf', leafId: LEAF_ID },
+        activeLeafId: LEAF_ID,
+        expandedLeafId: null,
+        ptyIdsByLeafId: { [LEAF_ID]: PTY_ID }
+      })
+    })
+
     it('retires launch/title hints when the launch-owning parked leaf exits', () => {
       mockStoreState.tabsByWorktree = {
         [WORKTREE_ID]: [{ id: TAB_ID, launchAgent: 'codex', ptyId: PTY_ID }]

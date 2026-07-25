@@ -83,28 +83,31 @@ jobs:
       pull-requests: read
     strategy:
       fail-fast: false
+      max-parallel: 10
       matrix:
         include:
-          - shard: '1/10'
-            shard_name: 1-of-10
-          - shard: '2/10'
-            shard_name: 2-of-10
-          - shard: '3/10'
-            shard_name: 3-of-10
-          - shard: '4/10'
-            shard_name: 4-of-10
-          - shard: '5/10'
-            shard_name: 5-of-10
-          - shard: '6/10'
-            shard_name: 6-of-10
-          - shard: '7/10'
-            shard_name: 7-of-10
-          - shard: '8/10'
-            shard_name: 8-of-10
-          - shard: '9/10'
-            shard_name: 9-of-10
-          - shard: '10/10'
-            shard_name: 10-of-10
+          - shard_name: 1-of-10
+            test_args: '--shard=1/10 --grep-invert @ci-isolated'
+          - shard_name: 2-of-10
+            test_args: '--shard=2/10 --grep-invert @ci-isolated'
+          - shard_name: 3-of-10
+            test_args: '--shard=3/10 --grep-invert @ci-isolated'
+          - shard_name: 4-of-10
+            test_args: '--shard=4/10 --grep-invert @ci-isolated'
+          - shard_name: 5-of-10
+            test_args: '--shard=5/10 --grep-invert @ci-isolated'
+          - shard_name: 6-of-10
+            test_args: '--shard=6/10 --grep-invert @ci-isolated'
+          - shard_name: 7-of-10
+            test_args: '--shard=7/10 --grep-invert @ci-isolated'
+          - shard_name: 8-of-10
+            test_args: '--shard=8/10 --grep-invert @ci-isolated'
+          - shard_name: 9-of-10
+            test_args: '--shard=9/10 --grep-invert @ci-isolated'
+          - shard_name: 10-of-10
+            test_args: '--shard=10/10 --grep-invert @ci-isolated'
+          - shard_name: terminal-tui-wheel-drain
+            test_args: tests/e2e/terminal-tui-wheel-drain.spec.ts
 
     steps:
       - name: Checkout
@@ -157,8 +160,9 @@ jobs:
 
       # Why: the Electron suite is wall-clock constrained on OSS runners, but
       # multiple Electron apps on one Xvfb VM contend on git/Chromium resources.
-      # Sharding keeps each VM at one Playwright worker while splitting the
-      # headless suite across separate runners.
+      # Regular hash shards keep each VM at one Playwright worker. The two
+      # long-running @ci-isolated wheel-drain checks use their own VM so their
+      # measured CDP round-trip cost cannot consume a regular shard's budget.
       # SKIP_BUILD makes Playwright globalSetup reuse the single build job's
       # artifact instead of starting five concurrent electron-vite builds.
       # ORCA_E2E_FORWARD_APP_LOGS keeps startup failures visible when Electron
@@ -168,7 +172,7 @@ jobs:
         # requires both an explicit token environment variable and read scopes.
         env:
           GH_TOKEN: ${{ github.token }}
-        run: xvfb-run --auto-servernum env SKIP_BUILD=1 ORCA_E2E_FORWARD_APP_LOGS=1 pnpm run test:e2e --shard=${{ matrix.shard }}
+        run: xvfb-run --auto-servernum env SKIP_BUILD=1 ORCA_E2E_FORWARD_APP_LOGS=1 pnpm run test:e2e -- ${{ matrix.test_args }}
 
       # Why: Playwright retains traces/screenshots only on failure. Uploading
       # them as an artifact makes post-mortem debugging on CI possible without

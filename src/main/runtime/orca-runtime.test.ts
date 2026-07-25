@@ -24814,6 +24814,23 @@ describe('OrcaRuntimeService', () => {
     await expect(stopping).resolves.toEqual({ stopped: 1 })
   })
 
+  it('stops a persisted exact worktree when its Git listing is briefly stale', async () => {
+    const runtime = new OrcaRuntimeService(store)
+    const kill = vi.fn(() => true)
+    runtime.setPtyController({
+      write: () => true,
+      kill,
+      getForegroundProcess: async () => null
+    })
+    syncSinglePty(runtime, 'pty-1')
+    vi.mocked(listWorktrees).mockResolvedValue([])
+
+    await expect(runtime.stopTerminalsForWorktree(TEST_WORKTREE_ID)).resolves.toEqual({
+      stopped: 1
+    })
+    expect(kill).toHaveBeenCalledWith('pty-1')
+  })
+
   it('fails terminal listing closed if the graph reloads during selector resolution', async () => {
     const runtime = new OrcaRuntimeService(store)
 

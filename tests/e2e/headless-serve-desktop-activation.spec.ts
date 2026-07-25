@@ -142,6 +142,9 @@ test('promotes the headless owner without replacing its daemon terminal', async 
       )
       .toContain(beforeMarker)
 
+    // The second instance can notify the headless owner before spawn() returns;
+    // arm Playwright's event listener first so that promotion cannot be missed.
+    const firstWindow = serveApp.firstWindow({ timeout: 60_000 })
     activatingProcess = spawn(electronPath, getOrcaElectronLaunchArgs(mainPath, false), {
       env,
       stdio: 'ignore'
@@ -150,7 +153,7 @@ test('promotes the headless owner without replacing its daemon terminal', async 
       console.error('[e2e] activating process failed to spawn:', error)
     })
 
-    const page = await serveApp.firstWindow({ timeout: 60_000 })
+    const page = await firstWindow
     await page.waitForLoadState('domcontentloaded')
     await page.waitForFunction(() => Boolean(window.__store), null, { timeout: 30_000 })
     await waitForSessionReady(page)

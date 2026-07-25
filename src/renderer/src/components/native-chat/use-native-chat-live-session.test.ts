@@ -246,7 +246,7 @@ describe('mergeNativeChatLiveSession', () => {
     expect(session.status).toBe('ready')
   })
 
-  it('surfaces live work while the transcript loads and honors errors outright', () => {
+  it('keeps an unflushed transcript loading despite live work and honors errors outright', () => {
     expect(
       mergeNativeChatLiveSession({
         sources: { transcript: [] },
@@ -255,7 +255,7 @@ describe('mergeNativeChatLiveSession', () => {
         hookState: 'working',
         loading: true
       }).status
-    ).toBe('working')
+    ).toBe('loading')
 
     const errored = mergeNativeChatLiveSession({
       sources: { transcript: [] },

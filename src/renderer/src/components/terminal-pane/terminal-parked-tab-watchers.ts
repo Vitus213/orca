@@ -173,9 +173,11 @@ function startParkedTabWatchers(
       // reattach on reveal and resurrect its exited session as a fresh shell.
       useAppStore.getState().clearRuntimePaneTitle(tab.id, pane.paneId)
       if (hadPrimary) {
-        // Why: detach intentionally retains the pane transport's primary exit
-        // owner. It already performs the tab/leaf close; this sidecar only
-        // retires parked observation so one exit cannot queue two confirms.
+        // Why: park unmounts retain the transport's primary exit observer so
+        // it can release PTY state, but its PaneManager has already been
+        // destroyed. The parked watcher must still collapse this dead leaf or
+        // reveal reattaches the stale binding as a ghost pane.
+        collapseParkedExitedLeaf(tab.id, ptyId)
         disposersByPtyId.get(ptyId)?.()
         disposersByPtyId.delete(ptyId)
         return
