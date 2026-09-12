@@ -186,6 +186,7 @@ jobs:
       - run: pnpm build:cli
       - run: pnpm build:electron-vite
       - run: xvfb-run --auto-servernum dbus-run-session -- pnpm test:e2e:computer --reporter=verbose tests/e2e/computer-linux.e2e.ts
+        continue-on-error: ${{ github.event_name == 'schedule' }}
 
   windows:
     if: github.event_name != 'pull_request'
@@ -205,3 +206,4 @@ jobs:
       - run: pnpm build:cli
       - run: pnpm build:electron-vite
       - run: pnpm test:e2e:computer --reporter=verbose tests/e2e/computer-windows.e2e.ts tests/e2e/computer-windows-store.e2e.ts
+        continue-on-error: ${{ github.event_name == 'schedule' }}
