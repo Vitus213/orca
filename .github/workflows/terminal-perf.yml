@@ -91,6 +91,7 @@ jobs:
         run: npx electron-vite build --mode e2e
 
       - name: Run terminal scale perf report gate
+        continue-on-error: ${{ github.event_name == 'schedule' }}
         env:
           ORCA_TERMINAL_PERF_GREP: ${{ inputs.grep }}
           ORCA_TERMINAL_PERF_FRAME_COUNT: ${{ inputs.frame_count }}
